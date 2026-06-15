@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#4A3F35">
+<title>علو — فحص الوحدات</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --gold:#C9A961;--gold-pale:#F5EDE0;--beige:#D4C4A8;--cream:#F5EFE3;
+  --brown:#4A3F35;--brown-light:#7A6A5A;--brown-muted:#9A8A7A;--white:#FFFFFF;
+  --red:#C0392B;--red-light:#FDECEA;--green:#1A7A4A;--green-light:#E8F5EE;
+  --border:rgba(74,63,53,0.15);--shadow:0 2px 12px rgba(74,63,53,0.10);
+}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'IBM Plex Sans Arabic',sans-serif;direction:rtl;background:var(--cream);color:var(--brown);}
+#app{max-width:430px;margin:0 auto;height:100vh;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--cream);}
+
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden;}
+.screen.active{display:flex;}
+
+.topbar{background:var(--brown);color:var(--gold);padding:14px 16px 12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;min-height:60px;}
+.topbar-title{font-size:17px;font-weight:700;}
+.topbar-sub{font-size:12px;color:var(--beige);margin-top:2px;}
+.topbar-back{background:rgba(201,169,97,0.15);border:none;color:var(--gold);font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:20px;cursor:pointer;flex-shrink:0;}
+.topbar-back:active{background:rgba(201,169,97,0.3);}
+.logo-mark{font-size:24px;font-weight:700;color:var(--gold);}
+
+.content{flex:1;overflow-y:auto;padding:16px 16px 100px;-webkit-overflow-scrolling:touch;}
+
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+.stat-card{background:var(--white);border-radius:12px;padding:12px 8px;text-align:center;border:0.5px solid var(--border);}
+.stat-num{font-size:24px;font-weight:700;color:var(--brown);}
+.stat-num.gold{color:var(--gold);}.stat-num.green{color:var(--green);}.stat-num.red{color:var(--red);}
+.stat-label{font-size:11px;color:var(--brown-muted);margin-top:2px;}
+
+.card{background:var(--white);border-radius:14px;border:0.5px solid var(--border);padding:14px 16px;margin-bottom:10px;cursor:pointer;user-select:none;}
+.card:active{box-shadow:var(--shadow);}
+.card-title{font-size:16px;font-weight:600;color:var(--brown);}
+.card-sub{font-size:13px;color:var(--brown-muted);margin-top:4px;}
+.card-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.card-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+
+.badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;white-space:nowrap;}
+.badge-red{background:var(--red-light);color:var(--red);}
+.badge-green{background:var(--green-light);color:var(--green);}
+.badge-gold{background:var(--gold-pale);color:#7A5A10;}
+.badge-gray{background:#F0EDE8;color:var(--brown-muted);}
+
+.fab{position:absolute;bottom:24px;left:20px;width:60px;height:60px;border-radius:50%;background:var(--gold);color:var(--brown);font-size:30px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(201,169,97,0.5);z-index:50;transition:transform 0.15s;line-height:1;}
+.fab:active{transform:scale(0.94);}
+.fab.hidden{display:none!important;}
+
+.section-header{font-size:12px;font-weight:700;color:var(--brown-muted);letter-spacing:0.06em;margin:16px 0 10px;}
+
+.filter-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none;}
+.filter-bar::-webkit-scrollbar{display:none;}
+.filter-chip{flex-shrink:0;padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);font-family:inherit;font-size:12px;font-weight:600;color:var(--brown-light);background:var(--white);cursor:pointer;white-space:nowrap;}
+.filter-chip.active{background:var(--brown);border-color:var(--brown);color:var(--gold);}
+
+.defects-table{background:var(--white);border-radius:14px;border:0.5px solid var(--border);overflow:hidden;}
+.defect-row{padding:13px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:10px;}
+.defect-row:last-child{border-bottom:none;}
+.defect-row:active{background:var(--cream);}
+.defect-body{flex:1;min-width:0;}
+.defect-desc{font-size:14px;font-weight:600;color:var(--brown);line-height:1.4;}
+.defect-meta{font-size:12px;color:var(--brown-muted);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.defect-loc-badge{background:var(--gold-pale);color:#7A5A10;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;}
+.defect-toggle{background:none;border:1.5px solid;border-radius:20px;font-size:11px;font-weight:700;font-family:inherit;padding:6px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.defect-toggle.resolved{border-color:var(--green);color:var(--green);background:var(--green-light);}
+.defect-toggle.unresolved{border-color:var(--red);color:var(--red);background:var(--red-light);}
+.defect-toggle:active{opacity:0.7;}
+
+.unit-banner{border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:8px;margin-bottom:16px;font-weight:600;font-size:14px;}
+.banner-ready{background:var(--green-light);color:var(--green);}
+.banner-defects{background:var(--red-light);color:var(--red);}
+
+.actions-row{display:flex;gap:8px;margin-bottom:14px;}
+.action-btn{flex:1;padding:11px 8px;border-radius:10px;border:1px solid var(--border);background:var(--white);font-family:inherit;font-size:12px;font-weight:600;color:var(--brown);cursor:pointer;text-align:center;}
+.action-btn:active{background:var(--gold-pale);}
+
+.proj-del-btn{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:4px 8px;flex-shrink:0;line-height:1;}
+
+.form-group{margin-bottom:18px;}
+.form-label{font-size:13px;font-weight:700;color:var(--brown-light);margin-bottom:8px;display:block;}
+.form-input,.form-textarea,.form-select{width:100%;background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:13px 14px;font-family:inherit;font-size:15px;color:var(--brown);direction:rtl;outline:none;appearance:none;}
+.form-input:focus,.form-textarea:focus,.form-select:focus{border-color:var(--gold);}
+.form-textarea{min-height:100px;resize:none;}
+
+.zone-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.zone-chip{padding:9px 14px;border-radius:10px;border:1.5px solid var(--border);font-family:inherit;font-size:13px;font-weight:600;color:var(--brown-light);background:var(--white);cursor:pointer;transition:all 0.15s;}
+.zone-chip.selected{background:var(--brown);border-color:var(--brown);color:var(--gold);}
+
+.btn-primary{width:100%;background:var(--gold);color:var(--brown);border:none;border-radius:12px;padding:15px;font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px;}
+.btn-primary:active{opacity:0.85;}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-secondary{width:100%;background:transparent;color:var(--brown-light);border:1.5px solid var(--border);border-radius:12px;padding:13px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px;}
+
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+.photo-thumb{aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--gold-pale);display:flex;align-items:center;justify-content:center;position:relative;}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;}
+.photo-thumb .del-btn{position:absolute;top:4px;left:4px;background:rgba(0,0,0,0.55);color:white;border:none;width:22px;height:22px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.add-photo{aspect-ratio:1;border:2px dashed var(--gold);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;color:var(--gold);font-weight:700;gap:4px;background:transparent;}
+.add-photo-icon{font-size:26px;}
+input[type="file"]{display:none;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(74,63,53,0.5);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal-sheet{background:var(--white);border-radius:20px 20px 0 0;padding:20px 16px 40px;width:100%;max-width:430px;max-height:90vh;overflow-y:auto;}
+.modal-handle{width:40px;height:4px;background:var(--beige);border-radius:2px;margin:0 auto 18px;}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:4px;}
+.modal-sub{font-size:13px;color:var(--brown-muted);margin-bottom:16px;}
+
+.send-btns{display:flex;flex-direction:column;gap:10px;}
+.send-btn{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:12px;border:1.5px solid;background:transparent;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:right;direction:rtl;}
+.send-btn:active{opacity:0.8;}
+.send-btn-wa{border-color:#25D366;color:#1A7A4A;}
+.send-btn-pdf{border-color:var(--red);color:var(--red);}
+.send-btn-inapp{border-color:var(--gold);color:#7A5A10;}
+.send-icon{font-size:24px;flex-shrink:0;}
+.send-sub{font-size:11px;font-weight:400;margin-top:2px;opacity:0.8;}
+
+.wa-preview{background:#ECF5E8;border-radius:12px;padding:14px;font-size:13px;color:#2C4A2E;line-height:1.7;white-space:pre-wrap;border:1px solid #C3E0B8;margin-top:12px;max-height:280px;overflow-y:auto;direction:rtl;}
+
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--brown);color:var(--gold);padding:10px 22px;border-radius:24px;font-size:14px;font-weight:600;z-index:300;opacity:0;transition:opacity 0.2s;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;}
+
+.loading{position:fixed;inset:0;background:rgba(245,239,227,0.85);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;font-size:15px;font-weight:600;color:var(--brown);}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--beige);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading.hidden{display:none;}
+
+.empty{text-align:center;padding:48px 24px;color:var(--brown-muted);}
+.empty-icon{font-size:48px;margin-bottom:14px;}
+.empty-text{font-size:15px;line-height:1.7;}
+
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:400;display:none;align-items:center;justify-content:center;flex-direction:column;}
+.lightbox.show{display:flex;}
+.lightbox img{max-width:95vw;max-height:80vh;border-radius:8px;object-fit:contain;}
+.lightbox-close{position:absolute;top:20px;left:20px;background:rgba(255,255,255,0.2);color:white;border:none;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- LOADING -->
+<div class="loading" id="loading">
+  <div class="loading-spinner"></div>
+  <div>جاري التحميل...</div>
+</div>
+
+<!-- PROJECTS -->
+<div class="screen active" id="screen-projects">
+  <div class="topbar">
+    <div>
+      <div class="logo-mark">علو</div>
+      <div class="topbar-sub">فحص الوحدات قبل التسليم</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num gold" id="gs-projects">0</div><div class="stat-label">مشاريع</div></div>
+      <div class="stat-card"><div class="stat-num" id="gs-units">0</div><div class="stat-label">وحدات</div></div>
+      <div class="stat-card"><div class="stat-num green" id="gs-pct">—</div><div class="stat-label">منحلة</div></div>
+    </div>
+    <div class="section-header">المشاريع</div>
+    <div id="projects-list"></div>
+  </div>
+  <button class="fab" id="fab-projects" onclick="showAddProject()">+</button>
+</div>
+
+<!-- PROJECT DETAIL -->
+<div class="screen" id="screen-project">
+  <div class="topbar">
+    <div style="flex:1;min-width:0;">
+      <div class="topbar-title" id="proj-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+      <div class="topbar-sub" id="proj-sub"></div>
+    </div>
+    <button class="topbar-back" onclick="goTo('projects')">← رجوع</button>
+  </div>
+  <div class="content">
+    <div class="stats-row" id="proj-stats-row"></div>
+    <div class="actions-row">
+      <button class="action-btn" onclick="exportProjectPDF()">📋 تقرير المشروع</button>
+      <button class="action-btn" onclick="showSendModal('project')">📤 إرسال الكل</button>
+    </div>
+    <div class="section-header">الوحدات</div>
+    <div id="units-list"></div>
+  </div>
+  <button class="fab" id="fab-project" onclick="showAddUnit()">+</button>
+</div>
+
+<!-- UNIT DETAIL -->
+<div class="screen" id="screen-unit">
+  <div class="topbar">
+    <div style="flex:1;min-width:0;">
+      <div class="topbar-title" id="unit-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+      <div class="topbar-sub" id="unit-proj-sub"></div>
+    </div>
+    <button class="topbar-back" onclick="goTo('project')">← رجوع</button>
+  </div>
+  <div class="content">
+    <div id="unit-banner"></div>
+    <div class="stats-row" id="unit-stats-row"></div>
+    <div class="actions-row">
+      <button class="action-btn" onclick="showSendModal('unit')">📤 إرسال واتساب</button>
+      <button class="action-btn" onclick="exportUnitPDF()">📄 تقرير PDF</button>
+    </div>
+    <div class="filter-bar" id="filter-bar"></div>
+    <div id="defects-container"></div>
+  </div>
+  <button class="fab" id="fab-unit" onclick="showAddDefect()">+</button>
+</div>
+
+<!-- ADD PROJECT -->
+<div class="screen" id="screen-add-project">
+  <div class="topbar">
+    <div class="topbar-title">مشروع جديد</div>
+    <button class="topbar-back" onclick="goTo('projects')">إلغاء</button>
+  </div>
+  <div class="content">
+    <div class="form-group">
+      <label class="form-label">اسم المشروع *</label>
+      <input type="text" class="form-input" id="new-proj-name" placeholder="مثال: علو 16 - الضحيان">
+    </div>
+    <div class="form-group">
+      <label class="form-label">الموقع</label>
+      <input type="text" class="form-input" id="new-proj-loc" placeholder="مثال: الضحيان، الرياض">
+    </div>
+    <button class="btn-primary" id="btn-save-project" onclick="saveProject()">إنشاء المشروع</button>
+    <button class="btn-secondary" onclick="goTo('projects')">إلغاء</button>
+  </div>
+</div>
+
+<!-- ADD UNIT -->
+<div class="screen" id="screen-add-unit">
+  <div class="topbar">
+    <div class="topbar-title">وحدة جديدة</div>
+    <button class="topbar-back" onclick="goTo('project')">إلغاء</button>
+  </div>
+  <div class="content">
+    <div class="form-group">
+      <label class="form-label">اسم الوحدة *</label>
+      <input type="text" class="form-input" id="new-unit-name" placeholder="مثال: فيلا 1، دوبلكس A">
+    </div>
+    <button class="btn-primary" id="btn-save-unit" onclick="saveUnit()">إضافة الوحدة</button>
+    <button class="btn-secondary" onclick="goTo('project')">إلغاء</button>
+  </div>
+</div>
+
+<!-- ADD DEFECT -->
+<div class="screen" id="screen-add-defect">
+  <div class="topbar">
+    <div class="topbar-title">ملاحظة جديدة</div>
+    <button class="topbar-back" onclick="goTo('unit')">إلغاء</button>
+  </div>
+  <div class="content">
+    <div class="form-group">
+      <label class="form-label">الموقع *</label>
+      <div class="zone-chips" id="zone-chips">
+        <button class="zone-chip" onclick="selectZone(this,'خارج الفيلا')">خارج الفيلا (السور الخارجي)</button>
+        <button class="zone-chip" onclick="selectZone(this,'الحوش')">الحوش</button>
+        <button class="zone-chip" onclick="selectZone(this,'الدور الأرضي')">الدور الأرضي</button>
+        <button class="zone-chip" onclick="selectZone(this,'الدور الأول')">الدور الأول</button>
+        <button class="zone-chip" onclick="selectZone(this,'الملحق العلوي')">الملحق العلوي</button>
+        <button class="zone-chip" onclick="selectZone(this,'السطح')">السطح</button>
+        <button class="zone-chip" onclick="selectZone(this,'أخرى')">أخرى</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">تفصيل الموقع (اختياري)</label>
+      <input type="text" class="form-input" id="def-location-detail" placeholder="مثال: حمام رئيسي، غرفة نوم 2">
+    </div>
+    <div class="form-group">
+      <label class="form-label">وصف الملاحظة *</label>
+      <textarea class="form-textarea" id="def-desc" placeholder="اوصف المشكلة بالتفصيل..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">الصور 📷</label>
+      <div class="photo-grid" id="def-photos-grid"></div>
+      <input type="file" id="photo-input" accept="image/*" multiple onchange="handlePhotos(this)">
+    </div>
+    <button class="btn-primary" id="btn-save-defect" onclick="saveDefect()">حفظ الملاحظة ✓</button>
+    <button class="btn-secondary" onclick="goTo('unit')">إلغاء</button>
+  </div>
+</div>
+
+<!-- MODAL: SEND -->
+<div class="modal-overlay" id="send-modal" onclick="if(event.target===this)closeSendModal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="send-modal-title">إرسال الملاحظات</div>
+    <div class="modal-sub" id="send-modal-sub"></div>
+    <div class="send-btns">
+      <button class="send-btn send-btn-wa" onclick="sendWhatsApp()">
+        <span class="send-icon">💬</span>
+        <div><div>إرسال عبر واتساب</div><div class="send-sub">رسالة نصية جاهزة</div></div>
+      </button>
+      <button class="send-btn send-btn-pdf" onclick="closeSendModal();exportUnitPDF()">
+        <span class="send-icon">📄</span>
+        <div><div>تصدير PDF</div><div class="send-sub">تقرير كامل بهوية علو</div></div>
+      </button>
+      <button class="send-btn send-btn-inapp" onclick="markSentInApp()">
+        <span class="send-icon">✅</span>
+        <div><div>تسجيل كـ "تم الإرسال"</div><div class="send-sub">سجّل الإرسال داخل المنصة</div></div>
+      </button>
+    </div>
+    <button class="btn-secondary" onclick="closeSendModal()">إغلاق</button>
+  </div>
+</div>
+
+<!-- MODAL: WA -->
+<div class="modal-overlay" id="wa-modal" onclick="if(event.target===this)closeWaModal()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">رسالة واتساب</div>
+    <div class="modal-sub">انسخ وأرسل</div>
+    <div class="wa-preview" id="wa-text-preview"></div>
+    <button class="btn-primary" style="margin-top:14px" onclick="copyAndOpenWA()">📋 نسخ وفتح واتساب</button>
+    <button class="btn-secondary" onclick="closeWaModal()">إغلاق</button>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="document.getElementById('lightbox').classList.remove('show')">
+  <button class="lightbox-close" onclick="document.getElementById('lightbox').classList.remove('show')">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://qljyhzaovtbpurjzxxmy.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_o5QeNVNxT74YLgaXZ6HpuQ__w35p5kBKbhR7oHE';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const ZONES = ['خارج الفيلا','الحوش','الدور الأرضي','الدور الأول','الملحق العلوي','السطح','أخرى'];
+
+const S = {
+  screen:'projects', project:null, unit:null,
+  selectedZone:'', sendContext:'unit',
+  pendingPhotos:[], activeFilter:'الكل',
+  projects:[], units:[], defects:[]
+};
+
+function showLoading(msg='جاري التحميل...'){
+  const el=document.getElementById('loading');
+  el.querySelector('div:last-child').textContent=msg;
+  el.classList.remove('hidden');
+}
+function hideLoading(){ document.getElementById('loading').classList.add('hidden'); }
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2500);
+}
+function fmtDate(iso){ return iso?new Date(iso).toLocaleDateString('ar-SA',{day:'numeric',month:'short'}):''; }
+
+async function goTo(screen){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.fab').forEach(f=>f.classList.remove('hidden'));
+  S.screen=screen;
+  const el=document.getElementById('screen-'+screen);
+  if(el) el.classList.add('active');
+
+  if(screen==='projects') await renderProjects();
+  else if(screen==='project') await renderProject();
+  else if(screen==='unit'){ S.activeFilter='الكل'; await renderUnit(); }
+  else if(screen==='add-project') document.getElementById('fab-projects').classList.add('hidden');
+  else if(screen==='add-unit') document.getElementById('fab-project').classList.add('hidden');
+  else if(screen==='add-defect') document.getElementById('fab-unit').classList.add('hidden');
+
+  const c=el?el.querySelector('.content'):null;
+  if(c) c.scrollTop=0;
+}
+
+/* PROJECTS */
+async function renderProjects(){
+  showLoading();
+  const {data:projects}=await sb.from('projects').select('*').order('created_at',{ascending:false});
+  const {data:units}=await sb.from('units').select('*');
+  const {data:defects}=await sb.from('defects').select('*');
+  S.projects=projects||[]; S.units=units||[]; S.defects=defects||[];
+  hideLoading();
+
+  let tu=0,td=0,tr=0;
+  S.projects.forEach(p=>{
+    const us=S.units.filter(u=>u.project_id===p.id); tu+=us.length;
+    us.forEach(u=>{ const ds=S.defects.filter(d=>d.unit_id===u.id); td+=ds.length; tr+=ds.filter(d=>d.is_resolved).length; });
+  });
+  document.getElementById('gs-projects').textContent=S.projects.length;
+  document.getElementById('gs-units').textContent=tu;
+  document.getElementById('gs-pct').textContent=td?Math.round(tr/td*100)+'%':'—';
+
+  const list=document.getElementById('projects-list');
+  if(!S.projects.length){
+    list.innerHTML=`<div class="empty"><div class="empty-icon">🏗️</div><div class="empty-text">لا توجد مشاريع بعد<br>اضغط + لإضافة مشروعك الأول</div></div>`;
+    return;
+  }
+  list.innerHTML=S.projects.map(p=>{
+    const us=S.units.filter(u=>u.project_id===p.id);
+    const ds=us.flatMap(u=>S.defects.filter(d=>d.unit_id===u.id));
+    const res=ds.filter(d=>d.is_resolved).length;
+    const ready=us.filter(u=>{ const ud=S.defects.filter(d=>d.unit_id===u.id); return ud.length>0&&ud.every(d=>d.is_resolved); }).length;
+    const pct=ds.length?Math.round(res/ds.length*100):0;
+    return `<div class="card">
+      <div class="card-row" onclick="openProject('${p.id}')">
+        <div style="flex:1;min-width:0;"><div class="card-title">${p.name}</div>${p.location?`<div class="card-sub">📍 ${p.location}</div>`:''}</div>
+        <span class="badge badge-gold">${pct}% منحلة</span>
+        <button class="proj-del-btn" onclick="event.stopPropagation();deleteProject('${p.id}')">🗑</button>
+      </div>
+      <div class="card-badges" onclick="openProject('${p.id}')">
+        <span class="badge badge-gray">📦 ${us.length} وحدة</span>
+        <span class="badge badge-red">🔴 ${ds.length-res} معلقة</span>
+        <span class="badge badge-green">✅ ${ready} جاهزة</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function deleteProject(id){
+  if(!confirm('حذف المشروع وكل وحداته وملاحظاته؟')) return;
+  showLoading('جاري الحذف...');
+  const units=S.units.filter(u=>u.project_id===id);
+  for(const u of units){ await sb.from('defects').delete().eq('unit_id',u.id); }
+  await sb.from('units').delete().eq('project_id',id);
+  await sb.from('projects').delete().eq('id',id);
+  hideLoading(); toast('🗑 تم حذف المشروع'); await renderProjects();
+}
+
+function openProject(id){ S.project=S.projects.find(p=>p.id===id); goTo('project'); }
+
+function showAddProject(){
+  document.getElementById('new-proj-name').value='';
+  document.getElementById('new-proj-loc').value='';
+  goTo('add-project');
+  setTimeout(()=>document.getElementById('new-proj-name').focus(),200);
+}
+
+async function saveProject(){
+  const name=document.getElementById('new-proj-name').value.trim();
+  if(!name){ toast('⚠️ أدخل اسم المشروع'); return; }
+  const btn=document.getElementById('btn-save-project');
+  btn.disabled=true; btn.textContent='جاري الحفظ...';
+  const {error}=await sb.from('projects').insert({name,location:document.getElementById('new-proj-loc').value.trim()});
+  btn.disabled=false; btn.textContent='إنشاء المشروع';
+  if(error){ toast('❌ خطأ: '+error.message); return; }
+  toast('✅ تم إنشاء المشروع'); goTo('projects');
+}
+
+/* PROJECT */
+async function renderProject(){
+  showLoading();
+  const {data:units}=await sb.from('units').select('*').eq('project_id',S.project.id).order('created_at',{ascending:true});
+  S.units=units||[];
+  const unitIds=S.units.map(u=>u.id);
+  if(unitIds.length){
+    const {data:defects}=await sb.from('defects').select('*').in('unit_id',unitIds);
+    S.defects=defects||[];
+  } else { S.defects=[]; }
+  hideLoading();
+
+  const p=S.project;
+  document.getElementById('proj-title').textContent=p.name;
+  document.getElementById('proj-sub').textContent=p.location||'علو العقارية';
+
+  const ds=S.defects;
+  const res=ds.filter(d=>d.is_resolved).length;
+  const ready=S.units.filter(u=>{ const ud=S.defects.filter(d=>d.unit_id===u.id); return ud.length>0&&ud.every(d=>d.is_resolved); }).length;
+
+  document.getElementById('proj-stats-row').innerHTML=`
+    <div class="stat-card"><div class="stat-num">${S.units.length}</div><div class="stat-label">وحدة</div></div>
+    <div class="stat-card"><div class="stat-num red">${ds.length-res}</div><div class="stat-label">معلقة</div></div>
+    <div class="stat-card"><div class="stat-num green">${ready}</div><div class="stat-label">جاهزة</div></div>`;
+
+  const list=document.getElementById('units-list');
+  if(!S.units.length){
+    list.innerHTML=`<div class="empty"><div class="empty-icon">🏠</div><div class="empty-text">لا توجد وحدات<br>اضغط + لإضافة وحدة</div></div>`;
+    return;
+  }
+  list.innerHTML=S.units.map(u=>{
+    const ud=S.defects.filter(d=>d.unit_id===u.id);
+    const ur=ud.filter(d=>d.is_resolved).length;
+    const isReady=ud.length>0&&ud.every(d=>d.is_resolved);
+    return `<div class="card" onclick="openUnit('${u.id}')">
+      <div class="card-row">
+        <div><div class="card-title">${u.name}</div></div>
+        <span class="badge ${isReady?'badge-green':'badge-red'}">${isReady?'✅ جاهزة':'🔴 معلقة'}</span>
+      </div>
+      <div class="card-badges">
+        <span class="badge badge-gray">${ud.length} ملاحظة</span>
+        <span class="badge badge-green">${ur} منحلة</span>
+        <span class="badge badge-red">${ud.length-ur} معلقة</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openUnit(id){ S.unit=S.units.find(u=>u.id===id); goTo('unit'); }
+
+function showAddUnit(){
+  document.getElementById('new-unit-name').value='';
+  goTo('add-unit');
+  setTimeout(()=>document.getElementById('new-unit-name').focus(),200);
+}
+
+async function saveUnit(){
+  const name=document.getElementById('new-unit-name').value.trim();
+  if(!name){ toast('⚠️ أدخل اسم الوحدة'); return; }
+  const btn=document.getElementById('btn-save-unit');
+  btn.disabled=true; btn.textContent='جاري الحفظ...';
+  const {error}=await sb.from('units').insert({project_id:S.project.id,name});
+  btn.disabled=false; btn.textContent='إضافة الوحدة';
+  if(error){ toast('❌ خطأ: '+error.message); return; }
+  toast('✅ تمت إضافة الوحدة'); goTo('project');
+}
+
+/* UNIT */
+async function renderUnit(){
+  showLoading();
+  const {data:defects}=await sb.from('defects').select('*').eq('unit_id',S.unit.id).order('created_at',{ascending:true});
+  S.defects=defects||[];
+  hideLoading();
+
+  const u=S.unit;
+  document.getElementById('unit-title').textContent=u.name;
+  document.getElementById('unit-proj-sub').textContent=S.project.name;
+
+  const allDs=S.defects;
+  const res=allDs.filter(d=>d.is_resolved).length;
+  const isReady=allDs.length>0&&allDs.every(d=>d.is_resolved);
+
+  document.getElementById('unit-banner').innerHTML=allDs.length===0?'':
+    `<div class="unit-banner ${isReady?'banner-ready':'banner-defects'}">${isReady?'✅ الوحدة جاهزة للاستلام':'🔴 '+(allDs.length-res)+' ملاحظة معلقة'}</div>`;
+
+  document.getElementById('unit-stats-row').innerHTML=`
+    <div class="stat-card"><div class="stat-num">${allDs.length}</div><div class="stat-label">إجمالي</div></div>
+    <div class="stat-card"><div class="stat-num red">${allDs.length-res}</div><div class="stat-label">معلقة</div></div>
+    <div class="stat-card"><div class="stat-num green">${res}</div><div class="stat-label">منحلة</div></div>`;
+
+  const zones=['الكل',...ZONES.filter(z=>allDs.some(d=>d.zone===z))];
+  document.getElementById('filter-bar').innerHTML=zones.map(z=>
+    `<button class="filter-chip ${S.activeFilter===z?'active':''}" onclick="setFilter('${z}')">${z}</button>`
+  ).join('');
+
+  renderDefectsList(allDs);
+}
+
+function setFilter(zone){ S.activeFilter=zone; renderDefectsList(S.defects); 
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  document.querySelectorAll('.filter-chip').forEach(c=>{ if(c.textContent===zone) c.classList.add('active'); });
+}
+
+function renderDefectsList(allDs){
+  const container=document.getElementById('defects-container');
+  const filtered=S.activeFilter==='الكل'?allDs:allDs.filter(d=>d.zone===S.activeFilter);
+  if(!allDs.length){
+    container.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">لا توجد ملاحظات<br>اضغط + لتسجيل أول ملاحظة</div></div>`;
+    return;
+  }
+  if(!filtered.length){
+    container.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">لا توجد ملاحظات في هذا الموقع</div></div>`;
+    return;
+  }
+  container.innerHTML=`<div class="defects-table">${filtered.map((def,i)=>`
+    <div class="defect-row">
+      <div style="font-size:13px;font-weight:700;color:var(--brown-muted);min-width:20px;text-align:center;">${i+1}</div>
+      <div class="defect-body">
+        <div class="defect-desc">${def.description||'—'}</div>
+        <div class="defect-meta">
+          <span class="defect-loc-badge">📍 ${def.zone}${def.location_detail?' · '+def.location_detail:''}</span>
+          <span>${fmtDate(def.created_at)}</span>
+          ${def.photos&&def.photos.length?`<span>📸 ${def.photos.length}</span>`:''}
+        </div>
+        ${def.photos&&def.photos.length?`<div style="display:flex;gap:4px;margin-top:6px;">${def.photos.slice(0,3).map(src=>`<img src="${src}" onclick="openLightbox('${src}')" style="width:44px;height:44px;border-radius:6px;object-fit:cover;cursor:pointer;" alt="">`).join('')}</div>`:''}
+      </div>
+      <button class="defect-toggle ${def.is_resolved?'resolved':'unresolved'}" onclick="toggleDefect('${def.id}',${def.is_resolved})">
+        ${def.is_resolved?'✅ انحلت':'🔴 معلقة'}
+      </button>
+    </div>`).join('')}
+  </div>`;
+}
+
+async function toggleDefect(id, currentState){
+  const newState=!currentState;
+  const {error}=await sb.from('defects').update({is_resolved:newState,resolved_at:newState?new Date().toISOString():null}).eq('id',id);
+  if(error){ toast('❌ خطأ'); return; }
+  const def=S.defects.find(d=>d.id===id);
+  if(def){ def.is_resolved=newState; def.resolved_at=newState?new Date().toISOString():null; }
+  
+  const allDs=S.defects;
+  const res=allDs.filter(d=>d.is_resolved).length;
+  const isReady=allDs.length>0&&allDs.every(d=>d.is_resolved);
+  document.getElementById('unit-banner').innerHTML=allDs.length===0?'':
+    `<div class="unit-banner ${isReady?'banner-ready':'banner-defects'}">${isReady?'✅ الوحدة جاهزة للاستلام':'🔴 '+(allDs.length-res)+' ملاحظة معلقة'}</div>`;
+  document.getElementById('unit-stats-row').innerHTML=`
+    <div class="stat-card"><div class="stat-num">${allDs.length}</div><div class="stat-label">إجمالي</div></div>
+    <div class="stat-card"><div class="stat-num red">${allDs.length-res}</div><div class="stat-label">معلقة</div></div>
+    <div class="stat-card"><div class="stat-num green">${res}</div><div class="stat-label">منحلة</div></div>`;
+  renderDefectsList(allDs);
+  toast(newState?'✅ تم تسجيل الحل':'🔴 رجعت للمعلقة');
+}
+
+/* ADD DEFECT */
+function showAddDefect(){
+  S.selectedZone=''; S.pendingPhotos=[];
+  document.getElementById('def-location-detail').value='';
+  document.getElementById('def-desc').value='';
+  document.querySelectorAll('.zone-chip').forEach(c=>c.classList.remove('selected'));
+  renderPhotoGrid(); goTo('add-defect');
+  setTimeout(()=>document.getElementById('def-desc').focus(),200);
+}
+
+function selectZone(el,name){
+  document.querySelectorAll('.zone-chip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected'); S.selectedZone=name;
+}
+
+function handlePhotos(input){
+  const files=Array.from(input.files);
+  const remaining=10-S.pendingPhotos.length;
+  files.slice(0,remaining).forEach(file=>{
+    if(file.size>10*1024*1024){ toast('⚠️ الصورة كبيرة جداً'); return; }
+    const reader=new FileReader();
+    reader.onload=e=>compressImage(e.target.result,r=>{ S.pendingPhotos.push(r); renderPhotoGrid(); });
+    reader.readAsDataURL(file);
+  });
+  input.value='';
+}
+
+function compressImage(dataUrl,cb){
+  const img=new Image();
+  img.onload=()=>{
+    const canvas=document.createElement('canvas');
+    const MAX=1000; let w=img.width,h=img.height;
+    if(w>MAX){h=h*MAX/w;w=MAX;} if(h>MAX){w=w*MAX/h;h=MAX;}
+    canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    cb(canvas.toDataURL('image/jpeg',0.75));
+  };
+  img.src=dataUrl;
+}
+
+function renderPhotoGrid(){
+  const grid=document.getElementById('def-photos-grid');
+  grid.innerHTML=S.pendingPhotos.map((src,i)=>
+    `<div class="photo-thumb"><img src="${src}" alt="" onclick="openLightbox('${src}')"><button class="del-btn" onclick="deletePhoto(${i})">✕</button></div>`
+  ).join('')+(S.pendingPhotos.length<10?`<div class="add-photo" onclick="document.getElementById('photo-input').click()"><div class="add-photo-icon">📷</div><span>إضافة صورة</span></div>`:'');
+}
+
+function deletePhoto(i){ S.pendingPhotos.splice(i,1); renderPhotoGrid(); }
+function openLightbox(src){ document.getElementById('lightbox-img').src=src; document.getElementById('lightbox').classList.add('show'); }
+
+async function saveDefect(){
+  if(!S.selectedZone){ toast('⚠️ اختر الموقع أولاً'); return; }
+  const desc=document.getElementById('def-desc').value.trim();
+  if(!desc){ toast('⚠️ اكتب وصف الملاحظة'); return; }
+  const btn=document.getElementById('btn-save-defect');
+  btn.disabled=true; btn.textContent='جاري الحفظ...';
+  const {error}=await sb.from('defects').insert({
+    unit_id:S.unit.id,
+    zone:S.selectedZone,
+    location_detail:document.getElementById('def-location-detail').value.trim(),
+    description:desc,
+    photos:S.pendingPhotos,
+    is_resolved:false
+  });
+  btn.disabled=false; btn.textContent='حفظ الملاحظة ✓';
+  if(error){ toast('❌ خطأ: '+error.message); return; }
+  S.pendingPhotos=[];
+  toast('✅ تم حفظ الملاحظة'); goTo('unit');
+}
+
+/* SEND */
+function showSendModal(ctx){
+  S.sendContext=ctx;
+  document.getElementById('send-modal-title').textContent=ctx==='unit'?'إرسال ملاحظات الوحدة':'إرسال تقرير المشروع';
+  document.getElementById('send-modal-sub').textContent=ctx==='unit'?S.unit.name+' — '+S.project.name:S.project.name;
+  document.getElementById('send-modal').classList.add('show');
+}
+function closeSendModal(){ document.getElementById('send-modal').classList.remove('show'); }
+function closeWaModal(){ document.getElementById('wa-modal').classList.remove('show'); }
+
+function buildWAMessage(){
+  const p=S.project, u=S.unit;
+  const ds=S.defects.filter(d=>!d.is_resolved);
+  if(!ds.length) return 'لا توجد ملاحظات معلقة.';
+  let msg=`*علو العقارية — فحص الوحدات*\n📦 ${p.name}\n🏠 ${u.name}\n📅 ${new Date().toLocaleDateString('ar-SA')}\n\n━━━━━━━━━━━━━━━━\n`;
+  ds.forEach((d,i)=>{ msg+=`\n${i+1}. ${d.zone}${d.location_detail?' · '+d.location_detail:''}\n   ${d.description}\n`; });
+  msg+=`\n━━━━━━━━━━━━━━━━\nيرجى الإصلاح في أقرب وقت.\nخالد الفنتوخ — علو العقارية`;
+  return msg;
+}
+
+function sendWhatsApp(){
+  closeSendModal();
+  document.getElementById('wa-text-preview').textContent=buildWAMessage();
+  document.getElementById('wa-modal').classList.add('show');
+}
+function copyAndOpenWA(){
+  const msg=document.getElementById('wa-text-preview').textContent;
+  navigator.clipboard?.writeText(msg).then(()=>toast('✅ تم النسخ'));
+  closeWaModal();
+  setTimeout(()=>window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank'),300);
+}
+function markSentInApp(){ closeSendModal(); toast('✅ تم تسجيل الإرسال'); }
+
+/* PDF */
+function buildPDFBase(title,subtitle){
+  return `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8">
+<style>@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap');
+*{box-sizing:border-box;font-family:'IBM Plex Sans Arabic',sans-serif;margin:0;padding:0;}
+body{background:#F5EFE3;color:#4A3F35;direction:rtl;}
+.cover{background:#4A3F35;color:#C9A961;padding:48px 32px;text-align:center;}
+.logo{font-size:52px;font-weight:700;}.co{font-size:15px;color:#D4C4A8;margin-top:6px;}
+.ct{font-size:26px;font-weight:700;margin-top:24px;}.cs{font-size:17px;color:#D4C4A8;margin-top:6px;}
+.cd{font-size:12px;color:#9A8A7A;margin-top:12px;}
+.stats{display:flex;gap:12px;padding:20px 24px;}
+.sc{flex:1;background:white;border-radius:10px;padding:14px;text-align:center;}
+.sn{font-size:26px;font-weight:700;}.sl{font-size:11px;color:#7A6A5A;margin-top:3px;}
+table{width:calc(100% - 48px);border-collapse:collapse;margin:0 24px;}
+th{background:#C9A961;color:#4A3F35;padding:10px 12px;font-size:13px;text-align:right;}
+td{background:white;padding:12px;font-size:13px;border-bottom:1px solid #EDE8E0;vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+.sr{color:#1A7A4A;font-weight:700;}.sp{color:#C0392B;font-weight:700;}
+img.ph{width:60px;height:60px;object-fit:cover;border-radius:6px;margin:2px;}
+.footer{text-align:center;padding:32px 24px;color:#9A8A7A;font-size:12px;margin-top:24px;}
+.unit-sec{margin:0 24px 20px;background:white;border-radius:12px;padding:16px;}
+.un{font-size:16px;font-weight:700;margin-bottom:10px;}
+</style></head><body>
+<div class="cover"><div class="logo">علو</div><div class="co">علو العقارية للتطوير العقاري</div>
+<div class="ct">${title}</div><div class="cs">${subtitle}</div>
+<div class="cd">تاريخ الفحص: ${new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'long',day:'numeric'})}</div></div>`;
+}
+
+function exportUnitPDF(){
+  const u=S.unit, p=S.project, ds=S.defects;
+  const res=ds.filter(d=>d.is_resolved).length;
+  let html=buildPDFBase(p.name,'وحدة: '+u.name);
+  html+=`<div class="stats"><div class="sc"><div class="sn">${ds.length}</div><div class="sl">إجمالي</div></div><div class="sc"><div class="sn" style="color:#C0392B">${ds.length-res}</div><div class="sl">معلقة</div></div><div class="sc"><div class="sn" style="color:#1A7A4A">${res}</div><div class="sl">منحلة</div></div></div>`;
+  html+=`<table><tr><th>#</th><th>الموقع</th><th>الوصف</th><th>الحالة</th><th>صور</th></tr>${ds.map((d,i)=>`<tr><td>${i+1}</td><td>${d.zone}${d.location_detail?'<br><small>'+d.location_detail+'</small>':''}</td><td>${d.description}</td><td class="${d.is_resolved?'sr':'sp'}">${d.is_resolved?'✅ انحلت':'🔴 معلقة'}</td><td>${d.photos&&d.photos.length?d.photos.slice(0,2).map(src=>`<img class="ph" src="${src}">`).join(''):'—'}</td></tr>`).join('')}</table>`;
+  html+=`<div class="footer">إعداد: خالد الفنتوخ — علو العقارية · © ${new Date().getFullYear()}</div></body></html>`;
+  downloadHTML(html,`تقرير-${u.name}-${p.name}.html`);
+  toast('📄 تم تحميل التقرير');
+}
+
+function exportProjectPDF(){
+  const p=S.project, us=S.units, allDs=S.defects;
+  const res=allDs.filter(d=>d.is_resolved).length;
+  const ready=us.filter(u=>{ const ud=allDs.filter(d=>d.unit_id===u.id); return ud.length>0&&ud.every(d=>d.is_resolved); }).length;
+  let html=buildPDFBase(p.name,'تقرير المشروع الشامل');
+  html+=`<div class="stats"><div class="sc"><div class="sn">${us.length}</div><div class="sl">وحدة</div></div><div class="sc"><div class="sn" style="color:#1A7A4A">${ready}</div><div class="sl">جاهزة</div></div><div class="sc"><div class="sn">${allDs.length}</div><div class="sl">ملاحظات</div></div><div class="sc"><div class="sn" style="color:#C0392B">${allDs.length-res}</div><div class="sl">معلقة</div></div></div>`;
+  us.forEach(u=>{
+    const ud=allDs.filter(d=>d.unit_id===u.id);
+    const ur=ud.filter(d=>d.is_resolved).length;
+    const isR=ud.length>0&&ud.every(d=>d.is_resolved);
+    html+=`<div class="unit-sec"><div class="un">${u.name} ${isR?'✅':'🔴'}</div><table><tr><th>#</th><th>الموقع</th><th>الوصف</th><th>الحالة</th></tr>${ud.map((d,i)=>`<tr><td>${i+1}</td><td>${d.zone}${d.location_detail?' · '+d.location_detail:''}</td><td>${d.description}</td><td class="${d.is_resolved?'sr':'sp'}">${d.is_resolved?'✅':'🔴'}</td></tr>`).join('')}</table></div>`;
+  });
+  html+=`<div class="footer">إعداد: خالد الفنتوخ — علو العقارية · © ${new Date().getFullYear()}</div></body></html>`;
+  downloadHTML(html,`تقرير-${p.name}.html`);
+  toast('📋 تم تحميل تقرير المشروع');
+}
+
+function downloadHTML(html,filename){
+  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+goTo('projects');
+</script>
+</body>
+</html>
